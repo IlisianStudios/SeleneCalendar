@@ -448,4 +448,58 @@ public class SeleneCalendar extends Calendar {
 
         return PLANET_WEEK_DAYS[index];
     }
+
+    /**
+     * Returns a formatted string for the given julian that shows:
+     * - Selene Year
+     * - Lunation (month) number and its name
+     * - Day within the lunation
+     * - 8-day week day name
+     * - The computed Julian Date (JD)
+     *
+     * This method performs a read-only conversion based on the precise new moon calculation
+     * and the conversion formulas in computeFields(), without updating any internal state.
+     *
+     * @param JD the julian time in milliseconds (since Unix epoch)
+     * @return a formatted string representation of the corresponding Selene date
+     */
+    public String toString(long JD) {
+        // Estimate global lunation number using the mean synodic month.
+        // kApprox is based on our reference JDE_REF.
+        double kApprox = (JD - JDE_REF) / MEAN_SYNODIC_MONTH;
+        // Compute K₀ so that when global lunation L=0, we align with JD_START_OF_TIME.
+        double K0 = (JD_START_OF_TIME - JDE_REF) / MEAN_SYNODIC_MONTH;
+        int kOffset = (int) Math.round(K0);
+
+        // Compute L: the number of lunations since BASE_YEAR.
+        int L = (int) Math.floor(kApprox - K0);
+
+        // Compute the JD for the new moon of lunation (L + kOffset)
+        double newMoonJD = preciseNewMoonForLunationFull(L + kOffset);
+
+        // Compute the day within the lunation: add 1 because DATE is 1-indexed.
+        int computedDate = (int) Math.floor(JD - newMoonJD) + 1;
+
+        // If computedDate exceeds the actual maximum (29 or 30), adjust by rolling over.
+        int maxDate = daysInLunation(L + kOffset);
+        if (computedDate > maxDate) {
+            computedDate -= maxDate;
+            L++;
+        }
+
+        // Determine the Selene year and lunation (month) from the global lunation number.
+        int computedYear = L / 13 + BASE_YEAR;
+        int computedMonth = L % 13;
+
+        // Get the day of the 8-day week using your existing method.
+        String weekDay = getWeekDayFromJD(JD);
+        // Get the lunation name using your existing method.
+        String lunationName = getLunationName(computedYear, computedMonth);
+
+        // Return a formatted string with all components.
+        return "Selene Date: Year " + computedYear +
+                ", Lunation " + computedMonth + " " + lunationName +
+                ", Day " + computedDate +
+                ", Weekday " + weekDay;
+    }
 }
